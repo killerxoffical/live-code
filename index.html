@@ -13,7 +13,6 @@
     <!-- QRCode JS CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        /* Custom Scrollbar for Dark Theme */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #1f2937; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
@@ -32,7 +31,6 @@
             </span>
         </div>
 
-        <!-- Room Action Controls -->
         <div class="flex items-center space-x-2">
             <div class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 flex items-center space-x-2 text-sm">
                 <span class="text-gray-400 text-xs uppercase font-semibold">Room:</span>
@@ -53,12 +51,11 @@
         </div>
     </header>
 
-    <!-- MAIN CONTENT (2 COLUMNS) -->
+    <!-- MAIN CONTENT -->
     <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
         
         <!-- LEFT PANEL: CODE EDITOR -->
         <div class="flex-1 flex flex-col border-r border-gray-800 bg-gray-950">
-            <!-- Toolbar -->
             <div class="bg-gray-900/80 px-4 py-2 border-b border-gray-800 flex items-center justify-between">
                 <div class="text-xs font-mono text-gray-400">
                     <i class="fa-regular fa-file-code mr-1"></i> main_editor.txt
@@ -76,7 +73,6 @@
                 </div>
             </div>
             
-            <!-- Textarea Code Input -->
             <textarea id="code-editor" 
                 class="flex-1 w-full bg-gray-950 text-emerald-400 font-mono text-sm p-4 outline-none resize-none leading-relaxed placeholder-gray-700" 
                 placeholder="// Type or paste code/text here... It syncs in real-time with connected peers."></textarea>
@@ -85,35 +81,35 @@
         <!-- RIGHT PANEL: CHAT & FILE SHARE -->
         <div class="w-full md:w-80 lg:w-96 bg-gray-900 flex flex-col border-t md:border-t-0 border-gray-800 h-1/2 md:h-full">
             
-            <!-- Active Users List Header -->
             <div class="p-3 border-b border-gray-800 bg-gray-800/50 flex items-center justify-between">
                 <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider"><i class="fa-solid fa-users mr-1"></i> Active Users</span>
             </div>
             <div id="users-list" class="flex flex-wrap gap-1.5 p-2 border-b border-gray-800 max-h-20 overflow-y-auto bg-gray-950/50">
-                <!-- User Pills Inserted via JS -->
             </div>
 
-            <!-- Chat Messages Area -->
             <div class="px-3 py-2 border-b border-gray-800 bg-gray-800/30 text-xs font-semibold text-gray-400 uppercase tracking-wider flex justify-between items-center">
-                <span><i class="fa-regular fa-comments mr-1"></i> Live Chat</span>
-                <span class="text-[10px] text-gray-500 font-normal">Realtime P2P</span>
+                <span><i class="fa-regular fa-comments mr-1"></i> Live Chat & Files</span>
             </div>
             <div id="chat-messages" class="flex-1 p-3 overflow-y-auto space-y-3 font-sans text-sm">
                 <div class="text-center text-xs text-gray-500 my-2">Room created. Share link or QR code to collaborate!</div>
             </div>
 
-            <!-- Chat & File Input Controls -->
+            <!-- CONTROLS & FILE CREATION -->
             <div class="p-3 border-t border-gray-800 bg-gray-900 flex flex-col gap-2">
-                <!-- File Share Upload Bar -->
-                <div class="flex items-center justify-between bg-gray-800 rounded p-1.5 border border-gray-700 text-xs">
+                
+                <!-- File Share & Create TXT Bar -->
+                <div class="flex items-center justify-between bg-gray-800 rounded p-2 border border-gray-700 text-xs">
                     <input type="file" id="file-input" class="hidden" onchange="sendFile()">
-                    <label for="file-input" class="cursor-pointer text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 font-medium px-1">
+                    <label for="file-input" class="cursor-pointer text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium">
                         <i class="fa-solid fa-paperclip"></i> Share File
                     </label>
-                    <span id="file-status" class="text-gray-500 text-[10px] truncate max-w-[150px]">No file chosen</span>
+                    <span class="text-gray-600">|</span>
+                    <!-- New TXT Creation Modal Trigger -->
+                    <button onclick="showTxtModal()" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium">
+                        <i class="fa-solid fa-file-circle-plus"></i> Create .txt
+                    </button>
                 </div>
 
-                <!-- Text Message Input -->
                 <form onsubmit="sendChatMessage(event)" class="flex gap-2">
                     <input type="text" id="chat-input" placeholder="Type a message..." 
                         class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500 transition">
@@ -125,23 +121,38 @@
         </div>
     </div>
 
+    <!-- CREATE TXT FILE MODAL -->
+    <div id="txt-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 max-w-md w-full flex flex-col gap-3 shadow-2xl">
+            <h3 class="text-base font-bold text-gray-100 flex items-center gap-2">
+                <i class="fa-solid fa-file-lines text-emerald-400"></i> Create & Send .txt File
+            </h3>
+            <input type="text" id="txt-filename" placeholder="File Name (e.g. notes.txt)" 
+                class="bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-xs text-gray-100 outline-none focus:border-emerald-500">
+            <textarea id="txt-content" placeholder="Paste or type text/code here..." 
+                class="bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-xs text-gray-100 h-36 outline-none font-mono resize-none focus:border-emerald-500"></textarea>
+            <div class="flex justify-end gap-2 mt-1">
+                <button onclick="hideTxtModal()" class="bg-gray-700 hover:bg-gray-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium">Cancel</button>
+                <button onclick="sendTxtAsFile()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold">Send as File</button>
+            </div>
+        </div>
+    </div>
+
     <!-- QR CODE MODAL -->
     <div id="qr-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-sm w-full flex flex-col items-center gap-4 text-center">
             <h3 class="text-lg font-bold text-gray-100">Scan to Join Room</h3>
             <div id="qrcode" class="p-3 bg-white rounded-lg border border-gray-600"></div>
-            <p class="text-xs text-gray-400">Scan this QR code with a mobile phone camera to join this session instantly.</p>
             <button onclick="hideQRModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm font-medium transition">Close</button>
         </div>
     </div>
 
-    <!-- USERNAME INPUT MODAL (On First Visit) -->
+    <!-- USERNAME MODAL -->
     <div id="username-modal" class="fixed inset-0 bg-gray-950 flex items-center justify-center p-4 z-50">
         <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full shadow-2xl flex flex-col gap-4">
             <div class="text-center">
                 <i class="fa-solid fa-code text-indigo-400 text-4xl mb-2"></i>
                 <h2 class="text-xl font-bold text-white">Join Workspace</h2>
-                <p class="text-xs text-gray-400 mt-1">Enter your name to start sharing code and chatting in real-time.</p>
             </div>
             <input type="text" id="username-input" placeholder="Enter your display name..." 
                 class="bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm text-gray-100 outline-none focus:border-indigo-500">
@@ -151,7 +162,6 @@
         </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
     <script>
         let peer = null;
         let connections = [];
@@ -163,7 +173,6 @@
         const editor = document.getElementById('code-editor');
         const chatMessages = document.getElementById('chat-messages');
 
-        // Parse URL params for Room ID
         const urlParams = new URLSearchParams(window.location.search);
         const urlRoomId = urlParams.get('room');
 
@@ -176,7 +185,6 @@
         }
 
         function initPeer() {
-            // Generate or use Room ID
             if (urlRoomId) {
                 roomId = urlRoomId;
                 isHost = false;
@@ -186,33 +194,15 @@
             }
 
             document.getElementById('room-id-display').innerText = roomId;
-
-            // Initialize PeerJS
             myPeerId = isHost ? roomId : 'user-' + Math.random().toString(36).substring(2, 9);
             peer = new Peer(myPeerId);
 
             peer.on('open', (id) => {
-                console.log('My Peer ID:', id);
                 updateUsersList();
-
-                if (!isHost) {
-                    // Connect to Host
-                    connectToHost(roomId);
-                }
+                if (!isHost) connectToHost(roomId);
             });
 
-            // Listen for incoming peer connections (Host side)
-            peer.on('connection', (conn) => {
-                setupConnection(conn);
-            });
-
-            peer.on('error', (err) => {
-                console.error('PeerJS Error:', err);
-                if (err.type === 'peer-not-found') {
-                    alert('Room not found! Redirecting to a new room.');
-                    window.location.href = window.location.pathname;
-                }
-            });
+            peer.on('connection', (conn) => setupConnection(conn));
         }
 
         function connectToHost(hostRoomId) {
@@ -224,24 +214,15 @@
             conn.on('open', () => {
                 connections.push(conn);
                 updateUsersList();
-                
-                // Send join greeting
                 broadcast({ type: 'CHAT', sender: 'System', text: `${conn.metadata?.username || 'A peer'} joined the room.` });
-
-                // Host syncs current editor text with the new joiner
-                if (isHost) {
-                    conn.send({ type: 'INIT_SYNC', content: editor.value });
-                }
+                if (isHost) conn.send({ type: 'INIT_SYNC', content: editor.value });
             });
 
-            conn.on('data', (data) => {
-                handleIncomingData(data, conn);
-            });
+            conn.on('data', (data) => handleIncomingData(data, conn));
 
             conn.on('close', () => {
                 connections = connections.filter(c => c !== conn);
                 updateUsersList();
-                appendChatMessage('System', 'A user disconnected.', 'text-gray-500');
             });
         }
 
@@ -253,36 +234,37 @@
                     break;
                 case 'CHAT':
                     appendChatMessage(data.sender, data.text);
-                    if (isHost) broadcast(data, conn); // Relay to others
+                    if (isHost) broadcast(data, conn);
                     break;
                 case 'FILE':
-                    appendFileMessage(data.sender, data.fileName, data.fileData);
-                    if (isHost) broadcast(data, conn); // Relay file
+                    appendFileMessage(data.fileId, data.sender, data.fileName, data.fileData);
+                    if (isHost) broadcast(data, conn);
+                    break;
+                case 'DELETE_FILE':
+                    const fileElem = document.getElementById(data.fileId);
+                    if (fileElem) fileElem.remove();
+                    if (isHost) broadcast(data, conn);
                     break;
             }
         }
 
         function broadcast(data, excludeConn = null) {
             connections.forEach(conn => {
-                if (conn !== excludeConn && conn.open) {
-                    conn.send(data);
-                }
+                if (conn !== excludeConn && conn.open) conn.send(data);
             });
         }
 
-        // --- EDITOR EVENTS ---
         editor.addEventListener('input', () => {
-            const content = editor.value;
-            broadcast({ type: 'CODE_SYNC', content: content });
+            broadcast({ type: 'CODE_SYNC', content: editor.value });
         });
 
         function copyCode() {
             navigator.clipboard.writeText(editor.value);
-            alert('Code copied to clipboard!');
+            alert('Code copied!');
         }
 
         function clearCode() {
-            if (confirm('Are you sure you want to clear the editor?')) {
+            if (confirm('Clear editor?')) {
                 editor.value = '';
                 broadcast({ type: 'CODE_SYNC', content: '' });
             }
@@ -296,7 +278,6 @@
             a.click();
         }
 
-        // --- CHAT EVENTS ---
         function sendChatMessage(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
@@ -323,39 +304,81 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // --- FILE SHARING ---
+        // --- FILE UPLOAD LOGIC ---
         function sendFile() {
             const fileInput = document.getElementById('file-input');
             const file = fileInput.files[0];
             if (!file) return;
 
-            document.getElementById('file-status').innerText = 'Sending...';
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 const fileData = e.target.result;
-                broadcast({ type: 'FILE', sender: myUsername, fileName: file.name, fileData: fileData });
-                appendFileMessage(myUsername + ' (You)', file.name, fileData);
-                document.getElementById('file-status').innerText = 'Sent!';
+                const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
+                
+                broadcast({ type: 'FILE', fileId: fileId, sender: myUsername, fileName: file.name, fileData: fileData });
+                appendFileMessage(fileId, myUsername + ' (You)', file.name, fileData);
                 fileInput.value = '';
             };
             reader.readAsDataURL(file);
         }
 
-        function appendFileMessage(sender, fileName, fileData) {
+        // --- PASTE TEXT AS .TXT FILE ---
+        function showTxtModal() {
+            document.getElementById('txt-modal').classList.remove('hidden');
+            document.getElementById('txt-modal').classList.add('flex');
+        }
+
+        function hideTxtModal() {
+            document.getElementById('txt-modal').classList.add('hidden');
+            document.getElementById('txt-modal').classList.remove('flex');
+        }
+
+        function sendTxtAsFile() {
+            let fileName = document.getElementById('txt-filename').value.trim() || 'notes.txt';
+            if (!fileName.endsWith('.txt')) fileName += '.txt';
+            const content = document.getElementById('txt-content').value;
+            if (!content) return alert('Text area cannot be empty!');
+
+            const fileData = 'data:text/plain;charset=utf-8,' + encodeURIComponent(content);
+            const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
+
+            broadcast({ type: 'FILE', fileId: fileId, sender: myUsername, fileName: fileName, fileData: fileData });
+            appendFileMessage(fileId, myUsername + ' (You)', fileName, fileData);
+
+            hideTxtModal();
+            document.getElementById('txt-filename').value = '';
+            document.getElementById('txt-content').value = '';
+        }
+
+        // --- APPEND FILE MESSAGE WITH DELETE BUTTON ---
+        function appendFileMessage(fileId, sender, fileName, fileData) {
             const msgDiv = document.createElement('div');
-            msgDiv.className = 'bg-gray-800 p-2.5 rounded-lg border border-indigo-900/50 flex items-center justify-between';
+            msgDiv.id = fileId;
+            msgDiv.className = 'bg-gray-800 p-2.5 rounded-lg border border-indigo-900/50 flex items-center justify-between gap-2';
             msgDiv.innerHTML = `
-                <div class="truncate mr-2">
+                <div class="truncate">
                     <div class="text-[10px] text-indigo-400 font-bold">${sender} shared a file:</div>
                     <div class="text-xs font-mono text-gray-200 truncate"><i class="fa-solid fa-file mr-1"></i>${escapeHTML(fileName)}</div>
                 </div>
-                <a href="${fileData}" download="${fileName}" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-2.5 py-1 rounded shrink-0 transition">
-                    <i class="fa-solid fa-download"></i>
-                </a>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <a href="${fileData}" download="${fileName}" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-2 py-1 rounded transition" title="Download">
+                        <i class="fa-solid fa-download"></i>
+                    </a>
+                    <button onclick="deleteFile('${fileId}')" class="bg-red-900/60 hover:bg-red-600 text-red-200 text-xs px-2 py-1 rounded transition" title="Delete File">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             `;
             chatMessages.appendChild(msgDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function deleteFile(fileId) {
+            if (confirm('Delete this file for everyone?')) {
+                const elem = document.getElementById(fileId);
+                if (elem) elem.remove();
+                broadcast({ type: 'DELETE_FILE', fileId: fileId });
+            }
         }
 
         // --- ROOM UTILITIES ---
@@ -368,7 +391,6 @@
 
             const usersList = document.getElementById('users-list');
             usersList.innerHTML = `<span class="bg-indigo-900/40 text-indigo-300 border border-indigo-700/50 text-[11px] px-2 py-0.5 rounded-full">${myUsername} (You)</span>`;
-            
             connections.forEach((c, idx) => {
                 const name = c.metadata?.username || `Peer ${idx + 1}`;
                 usersList.innerHTML += `<span class="bg-gray-800 text-gray-300 border border-gray-700 text-[11px] px-2 py-0.5 rounded-full">${name}</span>`;
@@ -378,7 +400,7 @@
         function copyRoomLink() {
             const roomUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
             navigator.clipboard.writeText(roomUrl);
-            alert('Room link copied! Share it with anyone.');
+            alert('Room link copied!');
         }
 
         function showQRModal() {
@@ -392,15 +414,12 @@
         }
 
         function hideQRModal() {
-            const modal = document.getElementById('qr-modal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
+            document.getElementById('qr-modal').classList.add('hidden');
+            document.getElementById('qr-modal').classList.remove('flex');
         }
 
         function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-            );
+            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
         }
     </script>
 </body>
