@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Code & File Share</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- QRCode JS CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        /* Custom Scrollbar for Dark Theme */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- TOP NAVBAR -->
+    <header class="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-code text-indigo-400 text-2xl"></i>
+            <h1 class="font-bold text-lg hidden sm:block">RealTime CodeShare</h1>
+            <span id="user-badge" class="bg-indigo-900/60 text-indigo-300 text-xs px-2.5 py-1 rounded-full border border-indigo-700/50">
+                <i class="fa-solid fa-user text-xs mr-1"></i> <span id="display-name-lbl">Connecting...</span>
+            </span>
+        </div>
+
+        <!-- Room Action Controls -->
+        <div class="flex items-center space-x-2">
+            <div class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 flex items-center space-x-2 text-sm">
+                <span class="text-gray-400 text-xs uppercase font-semibold">Room:</span>
+                <span id="room-id-display" class="font-mono text-indigo-400 font-bold">---</span>
+                <button onclick="copyRoomLink()" title="Copy Link" class="hover:text-white text-gray-400 transition">
+                    <i class="fa-regular fa-copy"></i>
+                </button>
+            </div>
+            
+            <button onclick="showQRModal()" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg text-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-qrcode"></i> <span class="hidden md:inline">QR Code</span>
+            </button>
+            
+            <div id="online-count" class="bg-emerald-900/40 text-emerald-400 border border-emerald-700/50 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>1 Online</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT (2 COLUMNS) -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- LEFT PANEL: CODE EDITOR -->
+        <div class="flex-1 flex flex-col border-r border-gray-800 bg-gray-950">
+            <!-- Toolbar -->
+            <div class="bg-gray-900/80 px-4 py-2 border-b border-gray-800 flex items-center justify-between">
+                <div class="text-xs font-mono text-gray-400">
+                    <i class="fa-regular fa-file-code mr-1"></i> main_editor.txt
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="copyCode()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1 rounded text-xs border border-gray-700 flex items-center gap-1 transition">
+                        <i class="fa-regular fa-clipboard"></i> Copy
+                    </button>
+                    <button onclick="clearCode()" class="bg-gray-800 hover:bg-red-900/50 hover:text-red-300 text-gray-200 px-2.5 py-1 rounded text-xs border border-gray-700 flex items-center gap-1 transition">
+                        <i class="fa-regular fa-trash-can"></i> Clear
+                    </button>
+                    <button onclick="downloadCode()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded text-xs flex items-center gap-1 transition">
+                        <i class="fa-solid fa-download"></i> Download
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Textarea Code Input -->
+            <textarea id="code-editor" 
+                class="flex-1 w-full bg-gray-950 text-emerald-400 font-mono text-sm p-4 outline-none resize-none leading-relaxed placeholder-gray-700" 
+                placeholder="// Type or paste code/text here... It syncs in real-time with connected peers."></textarea>
+        </div>
+
+        <!-- RIGHT PANEL: CHAT & FILE SHARE -->
+        <div class="w-full md:w-80 lg:w-96 bg-gray-900 flex flex-col border-t md:border-t-0 border-gray-800 h-1/2 md:h-full">
+            
+            <!-- Active Users List Header -->
+            <div class="p-3 border-b border-gray-800 bg-gray-800/50 flex items-center justify-between">
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider"><i class="fa-solid fa-users mr-1"></i> Active Users</span>
+            </div>
+            <div id="users-list" class="flex flex-wrap gap-1.5 p-2 border-b border-gray-800 max-h-20 overflow-y-auto bg-gray-950/50">
+                <!-- User Pills Inserted via JS -->
+            </div>
+
+            <!-- Chat Messages Area -->
+            <div class="px-3 py-2 border-b border-gray-800 bg-gray-800/30 text-xs font-semibold text-gray-400 uppercase tracking-wider flex justify-between items-center">
+                <span><i class="fa-regular fa-comments mr-1"></i> Live Chat</span>
+                <span class="text-[10px] text-gray-500 font-normal">Realtime P2P</span>
+            </div>
+            <div id="chat-messages" class="flex-1 p-3 overflow-y-auto space-y-3 font-sans text-sm">
+                <div class="text-center text-xs text-gray-500 my-2">Room created. Share link or QR code to collaborate!</div>
+            </div>
+
+            <!-- Chat & File Input Controls -->
+            <div class="p-3 border-t border-gray-800 bg-gray-900 flex flex-col gap-2">
+                <!-- File Share Upload Bar -->
+                <div class="flex items-center justify-between bg-gray-800 rounded p-1.5 border border-gray-700 text-xs">
+                    <input type="file" id="file-input" class="hidden" onchange="sendFile()">
+                    <label for="file-input" class="cursor-pointer text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 font-medium px-1">
+                        <i class="fa-solid fa-paperclip"></i> Share File
+                    </label>
+                    <span id="file-status" class="text-gray-500 text-[10px] truncate max-w-[150px]">No file chosen</span>
+                </div>
+
+                <!-- Text Message Input -->
+                <form onsubmit="sendChatMessage(event)" class="flex gap-2">
+                    <input type="text" id="chat-input" placeholder="Type a message..." 
+                        class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500 transition">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-lg text-sm transition">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR CODE MODAL -->
+    <div id="qr-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-sm w-full flex flex-col items-center gap-4 text-center">
+            <h3 class="text-lg font-bold text-gray-100">Scan to Join Room</h3>
+            <div id="qrcode" class="p-3 bg-white rounded-lg border border-gray-600"></div>
+            <p class="text-xs text-gray-400">Scan this QR code with a mobile phone camera to join this session instantly.</p>
+            <button onclick="hideQRModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm font-medium transition">Close</button>
+        </div>
+    </div>
+
+    <!-- USERNAME INPUT MODAL (On First Visit) -->
+    <div id="username-modal" class="fixed inset-0 bg-gray-950 flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full shadow-2xl flex flex-col gap-4">
+            <div class="text-center">
+                <i class="fa-solid fa-code text-indigo-400 text-4xl mb-2"></i>
+                <h2 class="text-xl font-bold text-white">Join Workspace</h2>
+                <p class="text-xs text-gray-400 mt-1">Enter your name to start sharing code and chatting in real-time.</p>
+            </div>
+            <input type="text" id="username-input" placeholder="Enter your display name..." 
+                class="bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm text-gray-100 outline-none focus:border-indigo-500">
+            <button onclick="setUserName()" class="bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-semibold transition">
+                Start Session
+            </button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        let peer = null;
+        let connections = [];
+        let myPeerId = '';
+        let myUsername = 'Anonymous';
+        let roomId = '';
+        let isHost = false;
+
+        const editor = document.getElementById('code-editor');
+        const chatMessages = document.getElementById('chat-messages');
+
+        // Parse URL params for Room ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlRoomId = urlParams.get('room');
+
+        function setUserName() {
+            const input = document.getElementById('username-input').value.trim();
+            if (input) myUsername = input;
+            document.getElementById('username-modal').classList.add('hidden');
+            document.getElementById('display-name-lbl').innerText = myUsername;
+            initPeer();
+        }
+
+        function initPeer() {
+            // Generate or use Room ID
+            if (urlRoomId) {
+                roomId = urlRoomId;
+                isHost = false;
+            } else {
+                roomId = 'room-' + Math.random().toString(36).substring(2, 9);
+                isHost = true;
+            }
+
+            document.getElementById('room-id-display').innerText = roomId;
+
+            // Initialize PeerJS
+            myPeerId = isHost ? roomId : 'user-' + Math.random().toString(36).substring(2, 9);
+            peer = new Peer(myPeerId);
+
+            peer.on('open', (id) => {
+                console.log('My Peer ID:', id);
+                updateUsersList();
+
+                if (!isHost) {
+                    // Connect to Host
+                    connectToHost(roomId);
+                }
+            });
+
+            // Listen for incoming peer connections (Host side)
+            peer.on('connection', (conn) => {
+                setupConnection(conn);
+            });
+
+            peer.on('error', (err) => {
+                console.error('PeerJS Error:', err);
+                if (err.type === 'peer-not-found') {
+                    alert('Room not found! Redirecting to a new room.');
+                    window.location.href = window.location.pathname;
+                }
+            });
+        }
+
+        function connectToHost(hostRoomId) {
+            const conn = peer.connect(hostRoomId, { metadata: { username: myUsername } });
+            setupConnection(conn);
+        }
+
+        function setupConnection(conn) {
+            conn.on('open', () => {
+                connections.push(conn);
+                updateUsersList();
+                
+                // Send join greeting
+                broadcast({ type: 'CHAT', sender: 'System', text: `${conn.metadata?.username || 'A peer'} joined the room.` });
+
+                // Host syncs current editor text with the new joiner
+                if (isHost) {
+                    conn.send({ type: 'INIT_SYNC', content: editor.value });
+                }
+            });
+
+            conn.on('data', (data) => {
+                handleIncomingData(data, conn);
+            });
+
+            conn.on('close', () => {
+                connections = connections.filter(c => c !== conn);
+                updateUsersList();
+                appendChatMessage('System', 'A user disconnected.', 'text-gray-500');
+            });
+        }
+
+        function handleIncomingData(data, conn) {
+            switch(data.type) {
+                case 'INIT_SYNC':
+                case 'CODE_SYNC':
+                    editor.value = data.content;
+                    break;
+                case 'CHAT':
+                    appendChatMessage(data.sender, data.text);
+                    if (isHost) broadcast(data, conn); // Relay to others
+                    break;
+                case 'FILE':
+                    appendFileMessage(data.sender, data.fileName, data.fileData);
+                    if (isHost) broadcast(data, conn); // Relay file
+                    break;
+            }
+        }
+
+        function broadcast(data, excludeConn = null) {
+            connections.forEach(conn => {
+                if (conn !== excludeConn && conn.open) {
+                    conn.send(data);
+                }
+            });
+        }
+
+        // --- EDITOR EVENTS ---
+        editor.addEventListener('input', () => {
+            const content = editor.value;
+            broadcast({ type: 'CODE_SYNC', content: content });
+        });
+
+        function copyCode() {
+            navigator.clipboard.writeText(editor.value);
+            alert('Code copied to clipboard!');
+        }
+
+        function clearCode() {
+            if (confirm('Are you sure you want to clear the editor?')) {
+                editor.value = '';
+                broadcast({ type: 'CODE_SYNC', content: '' });
+            }
+        }
+
+        function downloadCode() {
+            const blob = new Blob([editor.value], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `code_${roomId}.txt`;
+            a.click();
+        }
+
+        // --- CHAT EVENTS ---
+        function sendChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            appendChatMessage(myUsername + ' (You)', msg, 'text-indigo-400');
+            broadcast({ type: 'CHAT', sender: myUsername, text: msg });
+            input.value = '';
+        }
+
+        function appendChatMessage(sender, msg, colorClass = 'text-gray-200') {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'bg-gray-800/80 p-2.5 rounded-lg border border-gray-700/50';
+            msgDiv.innerHTML = `
+                <div class="flex justify-between items-center text-[11px] mb-1">
+                    <span class="font-bold ${colorClass}">${sender}</span>
+                    <span class="text-gray-500">${time}</span>
+                </div>
+                <div class="text-gray-300 break-words">${escapeHTML(msg)}</div>
+            `;
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // --- FILE SHARING ---
+        function sendFile() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            document.getElementById('file-status').innerText = 'Sending...';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const fileData = e.target.result;
+                broadcast({ type: 'FILE', sender: myUsername, fileName: file.name, fileData: fileData });
+                appendFileMessage(myUsername + ' (You)', file.name, fileData);
+                document.getElementById('file-status').innerText = 'Sent!';
+                fileInput.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function appendFileMessage(sender, fileName, fileData) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'bg-gray-800 p-2.5 rounded-lg border border-indigo-900/50 flex items-center justify-between';
+            msgDiv.innerHTML = `
+                <div class="truncate mr-2">
+                    <div class="text-[10px] text-indigo-400 font-bold">${sender} shared a file:</div>
+                    <div class="text-xs font-mono text-gray-200 truncate"><i class="fa-solid fa-file mr-1"></i>${escapeHTML(fileName)}</div>
+                </div>
+                <a href="${fileData}" download="${fileName}" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-2.5 py-1 rounded shrink-0 transition">
+                    <i class="fa-solid fa-download"></i>
+                </a>
+            `;
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // --- ROOM UTILITIES ---
+        function updateUsersList() {
+            const count = connections.length + 1;
+            document.getElementById('online-count').innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>${count} Online</span>
+            `;
+
+            const usersList = document.getElementById('users-list');
+            usersList.innerHTML = `<span class="bg-indigo-900/40 text-indigo-300 border border-indigo-700/50 text-[11px] px-2 py-0.5 rounded-full">${myUsername} (You)</span>`;
+            
+            connections.forEach((c, idx) => {
+                const name = c.metadata?.username || `Peer ${idx + 1}`;
+                usersList.innerHTML += `<span class="bg-gray-800 text-gray-300 border border-gray-700 text-[11px] px-2 py-0.5 rounded-full">${name}</span>`;
+            });
+        }
+
+        function copyRoomLink() {
+            const roomUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+            navigator.clipboard.writeText(roomUrl);
+            alert('Room link copied! Share it with anyone.');
+        }
+
+        function showQRModal() {
+            const modal = document.getElementById('qr-modal');
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            const roomUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+            new QRCode(qrContainer, { text: roomUrl, width: 160, height: 160 });
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function hideQRModal() {
+            const modal = document.getElementById('qr-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
