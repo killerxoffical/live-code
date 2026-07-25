@@ -10,8 +10,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <!-- QRCode JS CDN -->
+    <!-- QRCode JS Generator CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- HTML5 QR Code Scanner CDN -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #1f2937; }
@@ -21,20 +23,59 @@
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans h-screen flex flex-col overflow-hidden">
 
+    <!-- START / LANDING OVERLAY (Create or Join Room) -->
+    <div id="start-overlay" class="fixed inset-0 bg-gray-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 border border-gray-700 rounded-2xl p-6 max-w-md w-full shadow-2xl flex flex-col gap-6 text-center">
+            <div>
+                <i class="fa-solid fa-code text-indigo-400 text-5xl mb-3"></i>
+                <h2 class="text-2xl font-extrabold text-white">RealTime Workspace</h2>
+                <p class="text-xs text-gray-400 mt-1">Real-time code share, live chat & file transfer</p>
+                <div class="mt-3 inline-block bg-gray-900 px-3 py-1 rounded-full text-xs text-indigo-300 border border-gray-700">
+                    Your Name: <span id="auto-name" class="font-bold text-emerald-400">---</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div id="action-buttons" class="flex flex-col gap-3">
+                <button onclick="createNewRoom()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30">
+                    <i class="fa-solid fa-plus-circle text-lg"></i> Create New Room
+                </button>
+
+                <div class="relative flex py-1 items-center">
+                    <div class="flex-grow border-t border-gray-700"></div>
+                    <span class="flex-shrink mx-3 text-gray-500 text-xs uppercase font-semibold">OR</span>
+                    <div class="flex-grow border-t border-gray-700"></div>
+                </div>
+
+                <div class="flex gap-2">
+                    <input type="number" id="join-code-input" placeholder="Enter 4-digit code (e.g. 1455)" 
+                        class="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-3 text-center font-mono font-bold text-indigo-400 text-sm outline-none focus:border-indigo-500">
+                    <button onclick="joinRoomFromInput()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-3 rounded-xl font-bold text-sm transition">
+                        Join
+                    </button>
+                </div>
+
+                <button onclick="openScannerModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 py-2.5 rounded-xl font-medium text-xs transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-camera"></i> Scan QR Code to Join
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- TOP NAVBAR -->
     <header class="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between shrink-0">
         <div class="flex items-center space-x-3">
             <i class="fa-solid fa-code text-indigo-400 text-2xl"></i>
-            <h1 class="font-bold text-lg hidden sm:block">RealTime CodeShare</h1>
+            <h1 class="font-bold text-lg hidden sm:block">CodeShare</h1>
             <span id="user-badge" class="bg-indigo-900/60 text-indigo-300 text-xs px-2.5 py-1 rounded-full border border-indigo-700/50">
-                <i class="fa-solid fa-user text-xs mr-1"></i> <span id="display-name-lbl">Connecting...</span>
+                <i class="fa-solid fa-user text-xs mr-1"></i> <span id="display-name-lbl">User</span>
             </span>
         </div>
 
         <div class="flex items-center space-x-2">
             <div class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 flex items-center space-x-2 text-sm">
-                <span class="text-gray-400 text-xs uppercase font-semibold">Room:</span>
-                <span id="room-id-display" class="font-mono text-indigo-400 font-bold">---</span>
+                <span class="text-gray-400 text-xs uppercase font-semibold">Code:</span>
+                <span id="room-id-display" class="font-mono text-indigo-400 font-bold text-base">----</span>
                 <button onclick="copyRoomLink()" title="Copy Link" class="hover:text-white text-gray-400 transition">
                     <i class="fa-regular fa-copy"></i>
                 </button>
@@ -75,7 +116,7 @@
             
             <textarea id="code-editor" 
                 class="flex-1 w-full bg-gray-950 text-emerald-400 font-mono text-sm p-4 outline-none resize-none leading-relaxed placeholder-gray-700" 
-                placeholder="// Type or paste code/text here... It syncs in real-time with connected peers."></textarea>
+                placeholder="// Type or paste code/text here... Real-time syncing is active."></textarea>
         </div>
 
         <!-- RIGHT PANEL: CHAT & FILE SHARE -->
@@ -84,27 +125,21 @@
             <div class="p-3 border-b border-gray-800 bg-gray-800/50 flex items-center justify-between">
                 <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider"><i class="fa-solid fa-users mr-1"></i> Active Users</span>
             </div>
-            <div id="users-list" class="flex flex-wrap gap-1.5 p-2 border-b border-gray-800 max-h-20 overflow-y-auto bg-gray-950/50">
-            </div>
+            <div id="users-list" class="flex flex-wrap gap-1.5 p-2 border-b border-gray-800 max-h-20 overflow-y-auto bg-gray-950/50"></div>
 
-            <div class="px-3 py-2 border-b border-gray-800 bg-gray-800/30 text-xs font-semibold text-gray-400 uppercase tracking-wider flex justify-between items-center">
-                <span><i class="fa-regular fa-comments mr-1"></i> Live Chat & Files</span>
+            <div class="px-3 py-2 border-b border-gray-800 bg-gray-800/30 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <i class="fa-regular fa-comments mr-1"></i> Live Chat & Files
             </div>
-            <div id="chat-messages" class="flex-1 p-3 overflow-y-auto space-y-3 font-sans text-sm">
-                <div class="text-center text-xs text-gray-500 my-2">Room created. Share link or QR code to collaborate!</div>
-            </div>
+            <div id="chat-messages" class="flex-1 p-3 overflow-y-auto space-y-3 font-sans text-sm"></div>
 
-            <!-- CONTROLS & FILE CREATION -->
+            <!-- CONTROLS -->
             <div class="p-3 border-t border-gray-800 bg-gray-900 flex flex-col gap-2">
-                
-                <!-- File Share & Create TXT Bar -->
                 <div class="flex items-center justify-between bg-gray-800 rounded p-2 border border-gray-700 text-xs">
                     <input type="file" id="file-input" class="hidden" onchange="sendFile()">
                     <label for="file-input" class="cursor-pointer text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium">
-                        <i class="fa-solid fa-paperclip"></i> Share File
+                        <i class="fa-solid fa-paperclip"></i> Upload File
                     </label>
                     <span class="text-gray-600">|</span>
-                    <!-- New TXT Creation Modal Trigger -->
                     <button onclick="showTxtModal()" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium">
                         <i class="fa-solid fa-file-circle-plus"></i> Create .txt
                     </button>
@@ -121,7 +156,7 @@
         </div>
     </div>
 
-    <!-- CREATE TXT FILE MODAL -->
+    <!-- CREATE TXT MODAL -->
     <div id="txt-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 max-w-md w-full flex flex-col gap-3 shadow-2xl">
             <h3 class="text-base font-bold text-gray-100 flex items-center gap-2">
@@ -132,89 +167,117 @@
             <textarea id="txt-content" placeholder="Paste or type text/code here..." 
                 class="bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-xs text-gray-100 h-36 outline-none font-mono resize-none focus:border-emerald-500"></textarea>
             <div class="flex justify-end gap-2 mt-1">
-                <button onclick="hideTxtModal()" class="bg-gray-700 hover:bg-gray-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium">Cancel</button>
+                <button onclick="hideTxtModal()" class="bg-gray-700 text-white px-3.5 py-1.5 rounded-lg text-xs">Cancel</button>
                 <button onclick="sendTxtAsFile()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold">Send as File</button>
             </div>
         </div>
     </div>
 
-    <!-- QR CODE MODAL -->
+    <!-- QR CODE GENERATOR MODAL -->
     <div id="qr-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-sm w-full flex flex-col items-center gap-4 text-center">
             <h3 class="text-lg font-bold text-gray-100">Scan to Join Room</h3>
             <div id="qrcode" class="p-3 bg-white rounded-lg border border-gray-600"></div>
-            <button onclick="hideQRModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm font-medium transition">Close</button>
+            <button onclick="hideQRModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm transition">Close</button>
         </div>
     </div>
 
-    <!-- USERNAME MODAL -->
-    <div id="username-modal" class="fixed inset-0 bg-gray-950 flex items-center justify-center p-4 z-50">
-        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full shadow-2xl flex flex-col gap-4">
-            <div class="text-center">
-                <i class="fa-solid fa-code text-indigo-400 text-4xl mb-2"></i>
-                <h2 class="text-xl font-bold text-white">Join Workspace</h2>
-            </div>
-            <input type="text" id="username-input" placeholder="Enter your display name..." 
-                class="bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm text-gray-100 outline-none focus:border-indigo-500">
-            <button onclick="setUserName()" class="bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-semibold transition">
-                Start Session
-            </button>
+    <!-- QR SCANNER CAMERA MODAL -->
+    <div id="scanner-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 max-w-sm w-full flex flex-col items-center gap-4 text-center">
+            <h3 class="text-base font-bold text-gray-100">Scan Room QR Code</h3>
+            <div id="qr-reader" class="w-full overflow-hidden rounded-lg border border-gray-700 bg-black"></div>
+            <button onclick="closeScannerModal()" class="w-full bg-red-900/60 hover:bg-red-600 text-white py-2 rounded-lg text-xs font-semibold transition">Cancel Scan</button>
         </div>
     </div>
 
     <script>
         let peer = null;
         let connections = [];
-        let myPeerId = '';
-        let myUsername = 'Anonymous';
+        let myUsername = '';
         let roomId = '';
         let isHost = false;
+        let html5QrCode = null;
 
         const editor = document.getElementById('code-editor');
         const chatMessages = document.getElementById('chat-messages');
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlRoomId = urlParams.get('room');
-
-        function setUserName() {
-            const input = document.getElementById('username-input').value.trim();
-            if (input) myUsername = input;
-            document.getElementById('username-modal').classList.add('hidden');
-            document.getElementById('display-name-lbl').innerText = myUsername;
-            initPeer();
+        // Auto Generate Random Display Name
+        function generateRandomName() {
+            const adjectives = ['Neon', 'Swift', 'Hyper', 'Cyber', 'Alpha', 'Delta', 'Pixel'];
+            const nouns = ['Coder', 'Dev', 'Ninja', 'Hacker', 'User', 'Geek'];
+            const num = Math.floor(100 + Math.random() * 900);
+            return `${adjectives[Math.floor(Math.random()*adjectives.length)]}-${nouns[Math.floor(Math.random()*nouns.length)]}-${num}`;
         }
 
-        function initPeer() {
-            if (urlRoomId) {
-                roomId = urlRoomId;
-                isHost = false;
-            } else {
-                roomId = 'room-' + Math.random().toString(36).substring(2, 9);
-                isHost = true;
+        // On Page Load Init
+        window.onload = () => {
+            myUsername = generateRandomName();
+            document.getElementById('auto-name').innerText = myUsername;
+            document.getElementById('display-name-lbl').innerText = myUsername;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlRoom = urlParams.get('room');
+            if (urlRoom) {
+                document.getElementById('start-overlay').classList.add('hidden');
+                joinRoom(urlRoom);
             }
+        };
 
+        // Generate 4-digit Room Code (1000 - 9999)
+        function generate4DigitCode() {
+            return Math.floor(1000 + Math.random() * 9000).toString();
+        }
+
+        function createNewRoom() {
+            roomId = generate4DigitCode();
+            isHost = true;
+            document.getElementById('start-overlay').classList.add('hidden');
+            initPeer('room-' + roomId);
+        }
+
+        function joinRoomFromInput() {
+            const code = document.getElementById('join-code-input').value.trim();
+            if (code.length < 4) return alert('Please enter a valid 4-digit room code!');
+            document.getElementById('start-overlay').classList.add('hidden');
+            joinRoom(code);
+        }
+
+        function joinRoom(code) {
+            roomId = code;
+            isHost = false;
+            initPeer('user-' + Math.random().toString(36).substring(2, 9));
+        }
+
+        function initPeer(customPeerId) {
             document.getElementById('room-id-display').innerText = roomId;
-            myPeerId = isHost ? roomId : 'user-' + Math.random().toString(36).substring(2, 9);
-            peer = new Peer(myPeerId);
+            peer = new Peer('codeshare-' + customPeerId);
 
-            peer.on('open', (id) => {
+            peer.on('open', () => {
                 updateUsersList();
-                if (!isHost) connectToHost(roomId);
+                if (!isHost) {
+                    // Connect to Host
+                    const hostPeerId = 'codeshare-room-' + roomId;
+                    const conn = peer.connect(hostPeerId, { metadata: { username: myUsername } });
+                    setupConnection(conn);
+                }
             });
 
             peer.on('connection', (conn) => setupConnection(conn));
-        }
 
-        function connectToHost(hostRoomId) {
-            const conn = peer.connect(hostRoomId, { metadata: { username: myUsername } });
-            setupConnection(conn);
+            peer.on('error', (err) => {
+                if (err.type === 'peer-not-found') {
+                    alert('Room not found! Check the 4-digit code.');
+                    window.location.href = window.location.pathname;
+                }
+            });
         }
 
         function setupConnection(conn) {
             conn.on('open', () => {
                 connections.push(conn);
                 updateUsersList();
-                broadcast({ type: 'CHAT', sender: 'System', text: `${conn.metadata?.username || 'A peer'} joined the room.` });
+                broadcast({ type: 'CHAT', sender: 'System', text: `${conn.metadata?.username || 'A peer'} joined.` });
                 if (isHost) conn.send({ type: 'INIT_SYNC', content: editor.value });
             });
 
@@ -304,7 +367,6 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // --- FILE UPLOAD LOGIC ---
         function sendFile() {
             const fileInput = document.getElementById('file-input');
             const file = fileInput.files[0];
@@ -314,7 +376,6 @@
             reader.onload = function(e) {
                 const fileData = e.target.result;
                 const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
-                
                 broadcast({ type: 'FILE', fileId: fileId, sender: myUsername, fileName: file.name, fileData: fileData });
                 appendFileMessage(fileId, myUsername + ' (You)', file.name, fileData);
                 fileInput.value = '';
@@ -322,7 +383,6 @@
             reader.readAsDataURL(file);
         }
 
-        // --- PASTE TEXT AS .TXT FILE ---
         function showTxtModal() {
             document.getElementById('txt-modal').classList.remove('hidden');
             document.getElementById('txt-modal').classList.add('flex');
@@ -350,21 +410,20 @@
             document.getElementById('txt-content').value = '';
         }
 
-        // --- APPEND FILE MESSAGE WITH DELETE BUTTON ---
         function appendFileMessage(fileId, sender, fileName, fileData) {
             const msgDiv = document.createElement('div');
             msgDiv.id = fileId;
             msgDiv.className = 'bg-gray-800 p-2.5 rounded-lg border border-indigo-900/50 flex items-center justify-between gap-2';
             msgDiv.innerHTML = `
                 <div class="truncate">
-                    <div class="text-[10px] text-indigo-400 font-bold">${sender} shared a file:</div>
+                    <div class="text-[10px] text-indigo-400 font-bold">${sender} shared:</div>
                     <div class="text-xs font-mono text-gray-200 truncate"><i class="fa-solid fa-file mr-1"></i>${escapeHTML(fileName)}</div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <a href="${fileData}" download="${fileName}" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-2 py-1 rounded transition" title="Download">
                         <i class="fa-solid fa-download"></i>
                     </a>
-                    <button onclick="deleteFile('${fileId}')" class="bg-red-900/60 hover:bg-red-600 text-red-200 text-xs px-2 py-1 rounded transition" title="Delete File">
+                    <button onclick="deleteFile('${fileId}')" class="bg-red-900/60 hover:bg-red-600 text-red-200 text-xs px-2 py-1 rounded transition" title="Delete">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
@@ -381,7 +440,6 @@
             }
         }
 
-        // --- ROOM UTILITIES ---
         function updateUsersList() {
             const count = connections.length + 1;
             document.getElementById('online-count').innerHTML = `
@@ -400,7 +458,7 @@
         function copyRoomLink() {
             const roomUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
             navigator.clipboard.writeText(roomUrl);
-            alert('Room link copied!');
+            alert(`Room URL Copied! Code: ${roomId}`);
         }
 
         function showQRModal() {
@@ -416,6 +474,41 @@
         function hideQRModal() {
             document.getElementById('qr-modal').classList.add('hidden');
             document.getElementById('qr-modal').classList.remove('flex');
+        }
+
+        // --- CAMERA QR SCANNER LOGIC ---
+        function openScannerModal() {
+            document.getElementById('scanner-modal').classList.remove('hidden');
+            document.getElementById('scanner-modal').classList.add('flex');
+
+            html5QrCode = new Html5Qrcode("qr-reader");
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 200 },
+                (decodedText) => {
+                    let code = decodedText;
+                    if (decodedText.includes('room=')) {
+                        code = new URL(decodedText).searchParams.get('room');
+                    }
+                    closeScannerModal();
+                    document.getElementById('start-overlay').classList.add('hidden');
+                    joinRoom(code);
+                },
+                (error) => {}
+            );
+        }
+
+        function closeScannerModal() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    document.getElementById('scanner-modal').classList.add('hidden');
+                    document.getElementById('scanner-modal').classList.remove('flex');
+                }).catch(() => {
+                    document.getElementById('scanner-modal').classList.add('hidden');
+                    document.getElementById('scanner-modal').classList.remove('flex');
+                });
+            }
         }
 
         function escapeHTML(str) {
