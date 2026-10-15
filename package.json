@@ -1,0 +1,17 @@
+{
+  "name": "sharedrop-file-sharing",
+  "version": "1.0.0",
+  "description": "Private file sharing tool with room system, QR codes, and 5-character room codes",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.3",
+    "uuid": "^9.0.0"
+  }
+}
